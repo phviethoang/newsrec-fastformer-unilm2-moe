@@ -76,7 +76,7 @@ def train(local_rank,
 
         model = MLNR(args)
         if 'speedymind_ckpts' in args.pretrained_model_path:
-            train_path = os.path.join(args.pretrained_model_path, 'fastformer4rec.pt')
+            train_path = os.path.join(args.pretrained_model_path, 'speedyrec_mind_epoch-1.pt.pt')
             model.load_param(train_path)
 
 
