@@ -60,13 +60,13 @@ class TextEncoder(nn.Module):
         self.config = config_class.from_pretrained(args.pretrained_model_path, output_hidden_states=True)
 
         if args.num_hidden_layers != -1: self.config.num_hidden_layers = args.num_hidden_layers
-        if 'speedymind_ckpts' in args.pretrained_model_path:
-            self.unicoder = model_class(config=self.config)
-        else:
-            self.unicoder = model_class.from_pretrained(
-                args.pretrained_model_path,
-                config=self.config)
-
+        # if 'speedymind_ckpts' in args.pretrained_model_path:
+        #     self.unicoder = model_class(config=self.config)
+        # else:
+        #     self.unicoder = model_class.from_pretrained(
+        #         args.pretrained_model_path,
+        #         config=self.config)
+        self.unicoder = model_class(config=self.config)
         self.drop_layer = nn.Dropout(p=args.drop_rate)
         self.fc = nn.Linear(
             self.config.hidden_size,
