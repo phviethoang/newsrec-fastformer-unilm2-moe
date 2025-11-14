@@ -38,7 +38,7 @@ class NewsInfo:
 
     def sent_tokenize(self, sent, max_len):
         assert isinstance(sent, str)
-        sent_split = self.tokenizers(sent, max_length=max_len, pad_to_max_length=True, truncation=True)
+        sent_split = self.tokenizers(sent, max_length=max_len, padding='max_length', truncation=True)
         return sent_split
 
     def _parse_news_attrs(self, attr_raw_values):
