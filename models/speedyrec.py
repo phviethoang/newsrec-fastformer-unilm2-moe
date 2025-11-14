@@ -1,11 +1,11 @@
 import torch
 from torch import nn
-from transformers import BertConfig
+# from transformers import BertConfig
 from utility.utils import MODEL_CLASSES
 from models.fast import Fastformer
 from models.moe import MoE
-from transformers.modeling_bert import BertModel
-ffconfig = BertConfig.from_json_file('models/ffconfig.json')
+# from transformers.modeling_bert import BertModel
+# ffconfig = BertConfig.from_json_file('models/ffconfig.json')
 
 
 class AttentionPooling(nn.Module):
