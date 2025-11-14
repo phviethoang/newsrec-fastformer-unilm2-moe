@@ -53,41 +53,47 @@ def get_worker_files(dirnames,
 
 class StreamReader:
     def __init__(self, data_paths, batch_size, shuffle=False, shuffle_buffer_size=1000):
+        # Tắt GPU nếu muốn
         tf.config.experimental.set_visible_devices([], device_type="GPU")
-        logging.info(f"visible_devices:{tf.config.experimental.get_visible_devices()}")
+
         path_len = len(data_paths)
 
+        # Dataset TF2.x style
         dataset = tf.data.Dataset.list_files(data_paths, shuffle=False).interleave(
-            lambda x: tf.data.TextLineDataset(x).map(lambda y: tf.strings.join([y, x], separator="\t")),
+            lambda x: tf.data.TextLineDataset(x).map(
+                lambda y: tf.strings.join([y, x], separator="\t")
+            ),
             cycle_length=path_len,
-            block_length=batch_size,
-            # num_parallel_calls=min(path_len, batch_size),
+            block_length=batch_size
         )
+
+        if shuffle:
+            dataset = dataset.shuffle(buffer_size=shuffle_buffer_size)
 
         dataset = dataset.batch(batch_size)
         dataset = dataset.prefetch(3)
-        self.next_batch = dataset.make_one_shot_iterator().get_next()
-        self.session = None
 
-
-    def reset(self):
-        # print(f"StreamReader reset(), {self.session}, pid:{threading.currentThread()}")
-        if self.session:
-            self.session.close()
-        self.session = tf.Session()
-        self.endofstream = False
+        # Iterator Python, không in batch ra log
+        self.dataset = dataset
+        self.iterator = iter(self.dataset)
 
     def get_next(self):
         try:
-            ret = self.session.run(self.next_batch)
-        except tf.errors.OutOfRangeError:
-            self.endofstream = True
-            return None
-        return ret
+            return next(self.iterator)
+        except StopIteration:
+            return None  # hoặc raise StopIteration tuỳ nhu cầu
+
+    def reset(self):
+        self.iterator = iter(self.dataset)
 
     def reach_end(self):
-        # print(f"StreamReader reach_end(), {self.endofstream}")
-        return self.endofstream
+        try:
+            peek = next(self.iterator)
+            # trả lại batch vừa peek bằng cách reset
+            self.reset()
+            return False
+        except StopIteration:
+            return True
 
 
 class StreamSampler:
@@ -141,16 +147,14 @@ class StreamReaderForSpeedy:
         return self
 
     def __next__(self):
-        """Implement iterator interface."""
-        # logging.info(f"[StreamSampler] __next__")
         next_batch = self.stream_reader.get_next()
-        if not isinstance(next_batch, np.ndarray) and not isinstance(
-                next_batch, tuple) and not isinstance(next_batch, bytes):
+        if next_batch is None:
             raise StopIteration
         return next_batch
 
     def reach_end(self):
         return self.stream_reader.reach_end()
+
 
 
 class StreamSamplerTrainForSpeedyRec:
