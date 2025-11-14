@@ -157,10 +157,8 @@ def get_news_feature(args, mode='train', category_dict=None, subcategory_dict=No
         news_info = NewsInfo(args, mode, category_dict, subcategory_dict)
 
     directory, model_name = os.path.split(args.pretrained_model_path)
-    #for normal training:
-    #cache_file = f'{args.root_data_dir}/{mode}/{model_name}_{"+".join(args.news_attributes)}_preprocessed_docs.pkl'
-    #for kaggle training:
-    cache_file = '/kaggle/input/mindlarge/data/speedy_data/train/unilmv2_title+abstract_preprocessed_docs.pkl'
+    for normal training:
+    cache_file = f'{args.root_data_dir}/{mode}/{model_name}_{"+".join(args.news_attributes)}_preprocessed_docs.pkl'
     if os.path.exists(cache_file):
         logging.info(f'Load cache from {cache_file}')
         with open(cache_file, 'rb') as f:
