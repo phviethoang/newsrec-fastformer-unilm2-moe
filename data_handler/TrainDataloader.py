@@ -250,7 +250,9 @@ class DataLoaderTrainForSpeedyRec(IterableDataset):
             label_batch.append(0)
 
         if self.args.enable_gpu:
-            input_ids = torch.LongTensor(input_ids).cuda()
+            # input_ids = torch.LongTensor(input_ids).cuda()
+            #kaggle training
+            input_ids = torch.LongTensor(np.array(input_ids)).cuda()
             hist_sequence = torch.LongTensor(hist_sequence).cuda()
             hist_sequence_mask = torch.FloatTensor(hist_sequence_mask).cuda()
             candidate_inx = torch.LongTensor(candidate_inx).cuda()
