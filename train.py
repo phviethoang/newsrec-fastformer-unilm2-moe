@@ -74,25 +74,45 @@ def train(local_rank,
                 data_paths.extend(get_files(data_dirs, args.filename_pat))
                 data_paths.sort()
 
+        #nếu muốn train tiếp từ epoch trước:
+        start_epoch = 1
+
         model = MLNR(args)
+        train_path = None
+        checkpoint = None
+
         if 'speedymind_ckpts' in args.pretrained_model_path:
-            train_path = os.path.join(args.pretrained_model_path, 'speedyrec_mind_epoch-1.pt.pt')
+            train_path = os.path.join(args.pretrained_model_path, 'speedyrec_mind-epoch-1.pt')
             model.load_param(train_path)
-
-
         model = model.to(device)
+
+        # nếu train tiếp, load checkpoint
+        if train_path is not None:
+            checkpoint = torch.load(train_path, map_location='cpu')
+
+        # khởi tạo optimizer
         rest_param = filter(
             lambda x: id(x) not in list(map(id, model.news_encoder.unicoder.parameters())),
-            model.parameters())
+            model.parameters()
+        )
         optimizer = optim.Adam([{
             'params': model.news_encoder.unicoder.parameters(),
-            'lr': args.pretrain_lr  #lr_schedule(args.pretrain_lr, 1, args)
+            'lr': args.pretrain_lr
         }, {
             'params': rest_param,
-            'lr': args.lr  #lr_schedule(args.lr, 1, args)
+            'lr': args.lr
         }])
-        #
 
+        # load optimizer state
+        if checkpoint is not None:
+            optimizer.load_state_dict(checkpoint['optimizer'])
+            logging.info('Loading optimizer from {}'.format(train_path))
+            # đảm bảo tất cả state của optimizer trên đúng device
+            for state in optimizer.state.values():
+                for k, v in state.items():
+                    if isinstance(v, torch.Tensor):
+                        state[k] = v.to(device)
+                      
         if dist_training:
             ddp_model = DDP(model,
                             device_ids=[local_rank],
@@ -116,7 +136,7 @@ def train(local_rank,
         all_num = 1
         encode_num = 0
         cache = np.zeros((len(news_combined),args.news_dim))
-        for ep in range(args.epochs):
+        for ep in range(start_epoch, args.epochs):
             with only_on_main_process(local_rank, barrier) as need:
                 if need:
                     while len(data_files) > 0:
