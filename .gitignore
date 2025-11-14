@@ -1,0 +1,7 @@
+data
+saved_models
+__pycache__
+*.bin
+*.txt
+*.zip
+*.gz
