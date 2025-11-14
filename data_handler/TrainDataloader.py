@@ -270,7 +270,8 @@ class DataLoaderTrainForSpeedyRec(IterableDataset):
 
     def _process(self, batch):
         random.seed(self.global_step)
-        batch = [x.decode(encoding="utf-8").split("\t") for x in batch]
+        #kaggle training
+        batch = [x.numpy().decode("utf-8").split("\t") for x in batch]
         news_set, behavior_set, uid_click_docs, uid_sample_news = [], [], [], []
         for line in batch:
             click_docs = [i for i in line[2].split()]
