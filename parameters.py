@@ -105,7 +105,10 @@ def parse_args():
     parser.add_argument("--max_hit_ratio", type=float, default=1)
 
     parser.add_argument("--use_moe", type=bool, default=False)
-
+    # phục vụ training tiếp từ ckpt:
+    parser.add_argument("--start_epoch", type=int, default=0)
+    parser.add_argument("--global_epoch", type=int, default=0)
+    
     args = parser.parse_args()
     logging.info(args)
     return args
