@@ -57,7 +57,7 @@ def train(local_rank,
           data_files,
           end_dataloder,
           end_train,
-          dist_training=True):
+          dist_training=False):
 
     setuplogger()
     try:
@@ -75,14 +75,15 @@ def train(local_rank,
                 data_paths.sort()
 
         #nếu muốn train tiếp từ epoch trước:
-        start_epoch = 1
-
+        start_epoch = args.start_epoch
+        global_step = args.glob_step
+      
         model = MLNR(args)
         train_path = None
         checkpoint = None
 
         if 'speedymind_ckpts' in args.pretrained_model_path:
-            train_path = os.path.join(args.pretrained_model_path, 'speedyrec_mind-epoch-1.pt')
+            train_path = os.path.join(args.pretrained_model_path, f'speedyrec_mind-epoch-{start_epoch}-{global_step}.pt')
             model.load_param(train_path)
         model = model.to(device)
 
@@ -125,7 +126,7 @@ def train(local_rank,
         logging.info('Training...')
         start_time = time.time()
         test_time = 0.0
-        global_step = 0
+        
         best_count = 0
         optimizer.zero_grad()
 
