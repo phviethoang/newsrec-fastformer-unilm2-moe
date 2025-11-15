@@ -107,7 +107,7 @@ def parse_args():
     parser.add_argument("--use_moe", type=bool, default=False)
     # phục vụ training tiếp từ ckpt:
     parser.add_argument("--start_epoch", type=int, default=0)
-    parser.add_argument("--global_epoch", type=int, default=0)
+    parser.add_argument("--global_step", type=int, default=0)
     
     args = parser.parse_args()
     logging.info(args)
