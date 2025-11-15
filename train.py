@@ -83,7 +83,7 @@ def train(local_rank,
         checkpoint = None
 
         if 'speedymind_ckpts' in args.pretrained_model_path:
-            train_path = os.path.join(args.pretrained_model_path, f'speedyrec_mind-epoch-{start_epoch}-{global_step}.pt')
+            train_path = os.path.join(args.pretrained_model_path, f'speedyrec_mind-epoch-{start_epoch+1}-{global_step}.pt')
             model.load_param(train_path)
         model = model.to(device)
 
