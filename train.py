@@ -57,7 +57,7 @@ def train(local_rank,
           data_files,
           end_dataloder,
           end_train,
-          dist_training=False):
+          dist_training=True):
 
     setuplogger()
     try:
