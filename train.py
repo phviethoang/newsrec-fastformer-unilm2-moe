@@ -76,7 +76,7 @@ def train(local_rank,
 
         #nếu muốn train tiếp từ epoch trước:
         start_epoch = args.start_epoch
-        global_step = args.glob_step
+        global_step = args.global_step
       
         model = MLNR(args)
         train_path = None
