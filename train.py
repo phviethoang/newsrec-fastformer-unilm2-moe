@@ -129,7 +129,6 @@ def train(local_rank,
         
         best_count = 0
         optimizer.zero_grad()
-
         loss = 0.0
         best_auc = 0.0
         accuary = 0.0
@@ -137,6 +136,12 @@ def train(local_rank,
         all_num = 1
         encode_num = 0
         cache = np.zeros((len(news_combined),args.news_dim))
+        #khôi phục trạng thái cũ
+        if checkpoint is not None:
+            best_auc = checkpoint['best_auc']
+            best_count = checkpoint['best_count']
+            cache = checkpoint['cache']
+          
         for ep in range(start_epoch, args.epochs):
             with only_on_main_process(local_rank, barrier) as need:
                 if need:
