@@ -140,7 +140,7 @@ def train(local_rank,
         hit_num = 0
         all_num = 1
         encode_num = 0
-        accumulation_steps = 3
+        accumulation_steps = args.accum_step
         cache = np.zeros((len(news_combined),args.news_dim))
         for ep in range(start_epoch, args.epochs):
             with only_on_main_process(local_rank, barrier) as need:
