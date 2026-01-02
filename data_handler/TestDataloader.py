@@ -224,45 +224,38 @@ class DataLoaderLeader(DataLoaderTest):
 
     def generate_batch(self):
         user_feature_batch, log_mask_batch, news_feature_batch, news_bias_batch, label_batch, market_batch = [], [], [], [], [], []
-        user_news_history = []  # ADDED
         impids = []
         for file in self.test_files:
             print(f'predicting: {file}')
-            for line in tqdm(open(file, 'r')):  # ADDED tqdm
-                impid, uid, history, impressions = line.strip().split('\t')
-                click_docs = [i for i in history.split()]
+            with open(file, 'r') as f:
+                for line in tqdm(f, desc=f"Reading", leave=False):
+            # for line in open(file, 'r'):
+                    impid, uid, history, impressions = line.strip().split('\t')
+                    click_docs = [i for i in history.split()]
 
-                click_docs, log_mask  = self.pad_to_fix_len(self.trans_to_nindex(click_docs),
-                                                 self.args.user_log_length)
-                user_feature = self.news_scoring[click_docs]
+                    click_docs, log_mask  = self.pad_to_fix_len(self.trans_to_nindex(click_docs),
+                                                    self.args.user_log_length)
+                    user_feature = self.news_scoring[click_docs]
 
-                sess = [i for i in impressions.split()]
-                sess_candidate = self.trans_to_nindex(sess)
+                    sess = [i for i in impressions.split()]
+                    sess_candidate = self.trans_to_nindex(sess)
 
-                news_feature = self.news_scoring[sess_candidate]
+                    news_feature = self.news_scoring[sess_candidate]
 
-                # Sanitise user history to only contain non zero indeces of news
-                click_docs = np.array(click_docs)[np.nonzero(click_docs)]
-                if click_docs.shape[0] == 0: click_docs = [0]
+                    impids.append(impid)
+                    user_feature_batch.append(user_feature)
+                    log_mask_batch.append(log_mask)
+                    news_feature_batch.append(news_feature)
 
-                # Score news in the user history and add them to batch
-                news_history = [self.news_scoring[news] for news in click_docs]  # ADDED
-                user_news_history_batch.append(news_history)  # ADDED
+                    if len(impids)==self.args.batch_size:
+                        user_feature_batch = torch.FloatTensor(user_feature_batch).cuda()
+                        log_mask_batch = torch.FloatTensor(log_mask_batch).cuda()
+                        yield impids, user_feature_batch, log_mask_batch, news_feature_batch
 
-                impids.append(impid)
-                user_feature_batch.append(user_feature)
-                log_mask_batch.append(log_mask)
-                news_feature_batch.append(news_feature)
-
-                if len(impids)==self.args.batch_size:
-                    user_feature_batch = torch.FloatTensor(user_feature_batch).cuda()
-                    log_mask_batch = torch.FloatTensor(log_mask_batch).cuda()
-                    yield impids, user_feature_batch, log_mask_batch, news_feature_batch, user_news_history_batch  # ADDED user history yielding
-
-                    impids, user_feature_batch, log_mask_batch, news_feature_batch, user_news_history = [], [], [], [], []  # ADDED user hsitory
+                        impids, user_feature_batch, log_mask_batch, news_feature_batch = [], [], [], []
 
         if len(impids)>0:
             user_feature_batch = torch.FloatTensor(user_feature_batch).cuda()
             log_mask_batch = torch.FloatTensor(log_mask_batch).cuda()
-            user_news_history_batch = user_news_history
-            yield impids, user_feature_batch, log_mask_batch, news_feature_batch, user_news_history_batch  # ADDED
+            yield impids, user_feature_batch, log_mask_batch, news_feature_batch
+
