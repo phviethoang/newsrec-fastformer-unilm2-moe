@@ -108,6 +108,7 @@ def parse_args():
     # phục vụ training tiếp từ ckpt:
     parser.add_argument("--start_epoch", type=int, default=0)
     parser.add_argument("--global_step", type=int, default=0)
+    parser.add_argument("--accum_step", type=int, default=3)
     
     args = parser.parse_args()
     logging.info(args)
