@@ -75,21 +75,21 @@ def train(local_rank,
                 data_paths.sort()
 
         #nếu muốn train tiếp từ epoch trước:
-        start_epoch = args.start_epoch
-        global_step = args.global_step
-      
+        start_epoch = 0
+
         model = MLNR(args)
         train_path = None
         checkpoint = None
 
-        if 'speedymind_ckpts' in args.pretrained_model_path:
-            train_path = os.path.join(args.pretrained_model_path, f'speedyrec_mind-epoch-{start_epoch+1}-{global_step}.pt')
-            model.load_param(train_path)
+        # if 'unilmv2' in args.pretrained_model_path:
+        #     train_path = os.path.join(args.pretrained_model_path, 'speedyrec_mind-epoch-1.pt')
+        #     model.load_param(train_path)
         model = model.to(device)
 
         # nếu train tiếp, load checkpoint
         if train_path is not None:
             checkpoint = torch.load(train_path, map_location='cpu')
+
 
         # khởi tạo optimizer
         rest_param = filter(
@@ -113,7 +113,9 @@ def train(local_rank,
                 for k, v in state.items():
                     if isinstance(v, torch.Tensor):
                         state[k] = v.to(device)
-                      
+
+
+
         if dist_training:
             ddp_model = DDP(model,
                             device_ids=[local_rank],
@@ -124,24 +126,22 @@ def train(local_rank,
             ddp_model = model
 
         logging.info('Training...')
+
+
         start_time = time.time()
         test_time = 0.0
-        
+        global_step = 0
         best_count = 0
         optimizer.zero_grad()
+
         loss = 0.0
         best_auc = 0.0
         accuary = 0.0
         hit_num = 0
         all_num = 1
         encode_num = 0
+        accumulation_steps = 3
         cache = np.zeros((len(news_combined),args.news_dim))
-        #khôi phục trạng thái cũ
-        if checkpoint is not None:
-            best_auc = checkpoint['best_auc']
-            best_count = checkpoint['best_count']
-            cache = checkpoint['cache']
-          
         for ep in range(start_epoch, args.epochs):
             with only_on_main_process(local_rank, barrier) as need:
                 if need:
@@ -222,17 +222,41 @@ def train(local_rank,
                                              candidate_inx,
                                              label_batch)
 
-                    loss += bz_loss.item()
+                    # loss += bz_loss.item()
+                    # bz_loss.backward()
+                    # optimizer.step()
+                    # optimizer.zero_grad()
+
+                    # 1. Chia nhỏ Loss trước khi Backward
+                    # Điều này quan trọng để giữ độ lớn của Gradient không bị nhân lên
+                    loss_val = bz_loss.item() # Lấy giá trị loss gốc để log
+                    bz_loss = bz_loss / accumulation_steps 
+                    # 2. Backward (Tích lũy gradient vào .grad của các tham số)
                     bz_loss.backward()
-                    optimizer.step()
-                    optimizer.zero_grad()
+                    # 3. Chỉ Step Optimizer sau mỗi accumulation_steps bước
+                    if (cnt + 1) % accumulation_steps == 0:
+                        optimizer.step()
+                        optimizer.zero_grad()
+                        
+                        # torch.cuda.empty_cache()
+                    # Log loss (cộng dồn loss gốc để hiển thị cho đúng)
+                    loss += loss_val
+
+
 
                     accuary += acc(label_batch, y_hat)
 
-                    # update the cache
+                    # # update the cache
+                    # if args.max_step_in_cache > 0 and encode_vecs is not None:
+                    #     update_vecs = all_encode_vecs.detach().cpu().numpy()[:len(update_cache)]
+                    #     cache[update_cache] = update_vecs
                     if args.max_step_in_cache > 0 and encode_vecs is not None:
-                        update_vecs = all_encode_vecs.detach().cpu().numpy()[:len(update_cache)]
+                        # Dùng clone() để tạo bản sao sạch sẽ, sau đó detach và cpu
+                        update_vecs = all_encode_vecs.detach().clone().cpu().numpy()
+                        update_vecs = update_vecs[:len(update_cache)]
                         cache[update_cache] = update_vecs
+                        # QUAN TRỌNG: Xóa biến tạm để giải phóng ngay
+                        del update_vecs
 
                     optimizer.param_groups[0]['lr'] = lr_schedule(args.pretrain_lr, global_step, args)
                     optimizer.param_groups[1]['lr'] = lr_schedule(args.lr, global_step, args)
@@ -300,6 +324,9 @@ def train(local_rank,
         error_type, error_value, error_trace = sys.exc_info()
         traceback.print_tb(error_trace)
         logging.info(error_value)
+
+
+
 
 
 
