@@ -234,26 +234,57 @@ class StreamSamplerTrainForSpeedyRec:
 
 
 
+# class StreamReaderTest(StreamReader):
+#     def __init__(self, data_paths, batch_size, shuffle, shuffle_buffer_size=1000):
+#         tf.config.experimental.set_visible_devices([], device_type="GPU")
+#         # logging.info(f"visible_devices:{tf.config.experimental.get_visible_devices()}")
+#         path_len = len(data_paths)
+#         # logging.info(f"[StreamReader] path_len:{path_len}, paths: {data_paths}")
+#         dataset = tf.data.Dataset.list_files(data_paths).interleave(
+#             lambda x: tf.data.TextLineDataset(x).map(lambda y: tf.strings.join([y, x], separator="\t")),
+#             cycle_length=path_len,
+#             block_length=batch_size,
+#             num_parallel_calls=min(path_len, batch_size),
+#         )
+
+#         # if shuffle:
+#         #     dataset = dataset.shuffle(shuffle_buffer_size, reshuffle_each_iteration=True)
+        
+#         dataset = dataset.batch(batch_size)
+#         dataset = dataset.prefetch(1)
+#         self.next_batch = dataset.make_one_shot_iterator().get_next()
+#         self.session = None
+
 class StreamReaderTest(StreamReader):
     def __init__(self, data_paths, batch_size, shuffle, shuffle_buffer_size=1000):
+        # Tắt GPU cho data loader để tiết kiệm VRAM (giữ nguyên logic cũ)
         tf.config.experimental.set_visible_devices([], device_type="GPU")
-        # logging.info(f"visible_devices:{tf.config.experimental.get_visible_devices()}")
+        
         path_len = len(data_paths)
-        # logging.info(f"[StreamReader] path_len:{path_len}, paths: {data_paths}")
-        dataset = tf.data.Dataset.list_files(data_paths).interleave(
-            lambda x: tf.data.TextLineDataset(x).map(lambda y: tf.strings.join([y, x], separator="\t")),
+        
+        # Tạo Dataset
+        dataset = tf.data.Dataset.list_files(data_paths, shuffle=False).interleave(
+            lambda x: tf.data.TextLineDataset(x).map(
+                lambda y: tf.strings.join([y, x], separator="\t")
+            ),
             cycle_length=path_len,
             block_length=batch_size,
-            num_parallel_calls=min(path_len, batch_size),
+            num_parallel_calls=min(path_len, batch_size), # Giữ nguyên logic tối ưu của bản Test
         )
 
+        # Logic shuffle (đang comment thì giữ comment)
         # if shuffle:
         #     dataset = dataset.shuffle(shuffle_buffer_size, reshuffle_each_iteration=True)
         
         dataset = dataset.batch(batch_size)
-        dataset = dataset.prefetch(1)
-        self.next_batch = dataset.make_one_shot_iterator().get_next()
-        self.session = None
+        dataset = dataset.prefetch(1) # Giữ nguyên prefetch=1 của bản Test
+
+        # --- PHẦN SỬA CHỮA (FIX) ---
+        # Lỗi cũ: self.next_batch = dataset.make_one_shot_iterator().get_next() -> Sai ở TF2
+        # Cách sửa: Chuyển sang Python Iterator chuẩn của TF2
+        self.dataset = dataset
+        self.iterator = iter(self.dataset) 
+        # ---------------------------
 
 
 class StreamSamplerTest(StreamSampler):
