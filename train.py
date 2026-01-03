@@ -271,12 +271,12 @@ def train(local_rank,
                     loss = 0.0
                     accuary = 0.0
 
-                if global_step%args.test_steps == 0 and local_rank == 0:
-                    stest_time = time.time()
-                    auc = test(model, args, device, news_info.category_dict, news_info.subcategory_dict)
-                    ddp_model.train()
-                    logging.info('step:{}, auc:{}'.format(global_step, auc))
-                    test_time = test_time + time.time()-stest_time
+                # if global_step%args.test_steps == 0 and local_rank == 0:
+                #     stest_time = time.time()
+                #     auc = test(model, args, device, news_info.category_dict, news_info.subcategory_dict)
+                #     ddp_model.train()
+                #     logging.info('step:{}, auc:{}'.format(global_step, auc))
+                #     test_time = test_time + time.time()-stest_time
 
                 # save model minibatch
                 if local_rank == 0 and global_step % args.save_steps == 0:
@@ -303,19 +303,19 @@ def train(local_rank,
                     }, ckpt_path)
                 logging.info(f"Model saved to {ckpt_path}")
 
-                auc = test(model, args, device, news_info.category_dict, news_info.subcategory_dict)
-                ddp_model.train()
+                # auc = test(model, args, device, news_info.category_dict, news_info.subcategory_dict)
+                # ddp_model.train()
 
-                if auc>best_auc:
-                    best_auc = auc
-                else:
-                    best_count += 1
-                    if best_auc >= 3:
-                        logging.info("best_auc:{}, best_ep:{}".format(best_auc, ep-3))
-                        end_train.value = True
+                # if auc>best_auc:
+                #     best_auc = auc
+                # else:
+                #     best_count += 1
+                #     if best_auc >= 3:
+                #         logging.info("best_auc:{}, best_ep:{}".format(best_auc, ep-3))
+                #         end_train.value = True
             barrier()
-            if end_train.value:
-                break
+            # if end_train.value:
+            #     break
 
         if dist_training:
             cleanup_process()
