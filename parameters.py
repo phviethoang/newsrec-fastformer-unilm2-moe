@@ -85,7 +85,8 @@ def parse_args():
     parser.add_argument("--config-name", type=str, default='unilm2-base-uncased-config.json')
     parser.add_argument("--model_name_or_path", type=str, default='unilm2-base-uncased.bin')
     parser.add_argument("--tokenizer_name", type=str, default='unilm2-base-uncased-vocab.txt')
-
+    parser.add_argument("--trust_remote_code", type=utils.str2bool, default=False)
+    
     parser.add_argument("--num_hidden_layers", type=int, default=-1)
 
     parser.add_argument("--use_pretrain_news_encoder", type=utils.str2bool, default=False)
