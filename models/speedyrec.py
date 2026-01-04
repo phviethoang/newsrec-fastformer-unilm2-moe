@@ -79,7 +79,7 @@ class TextEncoder(nn.Module):
             local_weight_file = bin_path
         if os.path.isdir(args.pretrained_model_path) and local_weight_file:
             logging.info(f"Detected local folder. Loading weights manually from: {local_weight_file}")
-            self.unicoder = model_class.from_config(self.config)
+            self.unicoder = model_class(config=self.config)
             checkpoint = torch.load(local_weight_file, map_location='cpu')
             if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
                 state_dict = checkpoint['model_state_dict']
