@@ -60,13 +60,35 @@ class TextEncoder(nn.Module):
         self.config = config_class.from_pretrained(args.pretrained_model_path, output_hidden_states=True)
 
         if args.num_hidden_layers != -1: self.config.num_hidden_layers = args.num_hidden_layers
-        if 'speedymind_ckpts' in args.pretrained_model_path:
-            self.unicoder = model_class(config=self.config)
+        # if 'speedymind_ckpts' in args.pretrained_model_path:
+        #     self.unicoder = model_class(config=self.config)
+        # else:
+        #     self.unicoder = model_class.from_pretrained(
+        #         args.pretrained_model_path,
+        #         config=self.config)
+        # # self.unicoder = model_class(config=self.config)
+        
+        bin_path = os.path.join(args.pretrained_model_path, "pytorch_model.bin")
+        local_weight_file = None
+        if os.path.exists(bin_path):
+            local_weight_file = bin_path
+        if os.path.isdir(args.pretrained_model_path) and local_weight_file:
+            logging.info(f"Detected local folder. Loading weights manually from: {local_weight_file}")
+            self.unicoder = model_class.from_config(self.config)
+            checkpoint = torch.load(local_weight_file, map_location='cpu')
+            if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
+                state_dict = checkpoint['model_state_dict']
+            else:
+                state_dict = checkpoint
+            self.unicoder.load_state_dict(state_dict, strict=False)
+
         else:
+            # -> Dùng from_pretrained chuẩn
+            logging.info(f"Loading from HuggingFace Hub: {args.pretrained_model_path}")
             self.unicoder = model_class.from_pretrained(
                 args.pretrained_model_path,
-                config=self.config)
-        # self.unicoder = model_class(config=self.config)
+                config=self.config
+            )
         self.drop_layer = nn.Dropout(p=args.drop_rate)
         self.fc = nn.Linear(
             self.config.hidden_size,
