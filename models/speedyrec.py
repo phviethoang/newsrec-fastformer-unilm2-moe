@@ -58,8 +58,12 @@ class TextEncoder(nn.Module):
         self.args = args
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[args.pretreained_model]
-        self.config = config_class.from_pretrained(args.pretrained_model_path, output_hidden_states=True)
-
+        trust_remote_code = args.trust_remote_code
+        if trust_remote_code:
+            self.config = config_class.from_pretrained(args.pretrained_model_path, output_hidden_states=True, trust_remote_code=True)
+        else: 
+            self.config = config_class.from_pretrained(args.pretrained_model_path, output_hidden_states=True)
+            
         if args.num_hidden_layers != -1: self.config.num_hidden_layers = args.num_hidden_layers
         # if 'speedymind_ckpts' in args.pretrained_model_path:
         #     self.unicoder = model_class(config=self.config)
@@ -86,10 +90,17 @@ class TextEncoder(nn.Module):
         else:
             # -> Dùng from_pretrained chuẩn
             logging.info(f"Loading from HuggingFace Hub: {args.pretrained_model_path}")
-            self.unicoder = model_class.from_pretrained(
-                args.pretrained_model_path,
-                config=self.config
-            )
+            if trust_remote_code:
+                self.unicoder = model_class.from_pretrained(
+                    args.pretrained_model_path,
+                    config=self.config,
+                    trust_remote_code=True
+                )
+            else: 
+                self.unicoder = model_class.from_pretrained(
+                    args.pretrained_model_path,
+                    config=self.config
+                )
         self.drop_layer = nn.Dropout(p=args.drop_rate)
         self.fc = nn.Linear(
             self.config.hidden_size,
