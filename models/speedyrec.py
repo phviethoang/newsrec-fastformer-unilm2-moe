@@ -6,7 +6,7 @@ from models.fast import Fastformer
 from models.moe import MoE
 # from transformers.modeling_bert import BertModel
 ffconfig = BertConfig.from_json_file('models/ffconfig.json')
-
+import os 
 
 class AttentionPooling(nn.Module):
     def __init__(self, d_h, hidden_size, drop_rate):
