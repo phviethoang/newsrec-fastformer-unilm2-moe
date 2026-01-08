@@ -182,6 +182,7 @@ class UserEncoder(nn.Module):
             pad_doc,
             use_mask=True
     ):
+        ffconfig.hidden_size=self.args.news_dim
         bz = sent_vecs.shape[0]
         # if use_mask:
         #     user_log_vecs = attn_pool(sent_vecs, log_mask)
