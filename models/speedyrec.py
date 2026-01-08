@@ -169,7 +169,7 @@ class UserEncoder(nn.Module):
         self.news_attn_pool = AttentionPooling(
             args.news_dim, args.news_dim,
             drop_rate=args.drop_rate)
-
+    `   ffconfig.hidden_size = args.news_dim
         self.encoder = Fastformer(ffconfig)
         # self.encoder = BertModel(ffconfig)
 
@@ -182,7 +182,6 @@ class UserEncoder(nn.Module):
             pad_doc,
             use_mask=True
     ):
-        ffconfig.hidden_size=self.args.news_dim
         bz = sent_vecs.shape[0]
         # if use_mask:
         #     user_log_vecs = attn_pool(sent_vecs, log_mask)
