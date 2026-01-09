@@ -176,10 +176,19 @@ class DataLoaderTest(IterableDataset):
             news_feature_batch.append(news_feature)
             label_batch.append(np.array(labels))
 
+        # if self.enable_gpu:
+        #     user_feature_batch = torch.FloatTensor(user_feature_batch).cuda()
+        #     log_mask_batch = torch.FloatTensor(log_mask_batch).cuda()
+
+        # else:
+        #     user_feature_batch = torch.FloatTensor(user_feature_batch)
+        #     log_mask_batch = torch.FloatTensor(log_mask_batch)
+
+        user_feature_batch = np.array(user_feature_batch)
+        log_mask_batch = np.array(log_mask_batch)
         if self.enable_gpu:
             user_feature_batch = torch.FloatTensor(user_feature_batch).cuda()
             log_mask_batch = torch.FloatTensor(log_mask_batch).cuda()
-
         else:
             user_feature_batch = torch.FloatTensor(user_feature_batch)
             log_mask_batch = torch.FloatTensor(log_mask_batch)
