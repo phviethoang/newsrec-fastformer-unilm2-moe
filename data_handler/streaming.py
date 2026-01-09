@@ -136,7 +136,7 @@ class StreamSampler:
         
         # SỬA QUAN TRỌNG: Convert từ TF Tensor sang Numpy ngay lập tức
         # Nếu next_batch là Tensor (TF2 behavior), chuyển nó thành numpy array
-        if isinstance(next_batch, (tf.Tensor, tf.EagerTensor)):
+        if hasattr(next_batch, 'numpy'):
             next_batch = next_batch.numpy()
 
         # Kiểm tra điều kiện dừng (Sửa lại logic check type)
