@@ -165,24 +165,69 @@ class TextEncoder(nn.Module):
             return final_news_vector
 
 
+# class UserEncoder(nn.Module):
+#     def __init__(self, args, text_encoder=None):
+#         super(UserEncoder, self).__init__()
+#         self.args = args
+#         self.news_pad_doc = nn.Parameter(torch.empty(1, args.news_dim).uniform_(-1, 1)).type(torch.FloatTensor)
+#         self.dropout = nn.Dropout(p=args.drop_rate)
+        
+#         if args.user_encoder == 'attn_pool':
+#             self.news_attn_pool = AttentionPooling(
+#                 args.news_dim, args.news_dim,
+#                 drop_rate=args.drop_rate
+#             )
+#             self.encoder = None      
+#         elif args.user_encoder == 'fastformer':
+#             ffconfig.hidden_size = args.news_dim
+#             self.encoder = Fastformer(ffconfig)
+#             # self.encoder = BertModel(ffconfig)
+#             self.news_attn_pool = None
+
+#     def get_user_log_vec(
+#             self,
+#             sent_vecs,
+#             log_mask,
+#             log_length,
+#             attn_pool,
+#             pad_doc,
+#             use_mask=True
+#     ):
+#         bz = sent_vecs.shape[0]
+#         if self.args.user_encoder == 'attn_pool':
+#             if use_mask:
+#                 user_log_vecs = attn_pool(sent_vecs, log_mask)
+#             else:
+#                 padding_doc = pad_doc.expand(bz, self.args.news_dim).unsqueeze(1).expand(
+#                     bz, sent_vecs.size(1), self.args.news_dim)
+#                 sent_vecs = sent_vecs * log_mask.unsqueeze(2) + padding_doc * (1 - log_mask.unsqueeze(2))
+#                 user_log_vecs = attn_pool(sent_vecs)
+#         elif self.args.user_encoder == 'fastformer':
+#             user_log_vecs = self.encoder(sent_vecs, log_mask)
+#         return user_log_vecs
+
+#     def forward(self, user_news_vecs, log_mask,
+#                 user_log_mask=False):
+#         user_vec = self.get_user_log_vec(
+#             user_news_vecs, log_mask,
+#             self.args.user_log_length,
+#             self.news_attn_pool, self.news_pad_doc,
+#             user_log_mask
+#         )
+#         return user_vec
+
 class UserEncoder(nn.Module):
     def __init__(self, args, text_encoder=None):
         super(UserEncoder, self).__init__()
         self.args = args
         self.news_pad_doc = nn.Parameter(torch.empty(1, args.news_dim).uniform_(-1, 1)).type(torch.FloatTensor)
         self.dropout = nn.Dropout(p=args.drop_rate)
-        
-        if args.user_encoder == 'attn_pool':
-            self.news_attn_pool = AttentionPooling(
-                args.news_dim, args.news_dim,
-                drop_rate=args.drop_rate
-            )
-            self.encoder = None      
-        elif args.user_encoder == 'fastformer':
-            ffconfig.hidden_size = args.news_dim
-            self.encoder = Fastformer(ffconfig)
-            # self.encoder = BertModel(ffconfig)
-            self.news_attn_pool = None
+        self.news_attn_pool = AttentionPooling(
+            args.news_dim, args.news_dim,
+            drop_rate=args.drop_rate)
+
+        self.encoder = Fastformer(ffconfig)
+        # self.encoder = BertModel(ffconfig)
 
     def get_user_log_vec(
             self,
@@ -194,16 +239,15 @@ class UserEncoder(nn.Module):
             use_mask=True
     ):
         bz = sent_vecs.shape[0]
-        if self.args.user_encoder == 'attn_pool':
-            if use_mask:
-                user_log_vecs = attn_pool(sent_vecs, log_mask)
-            else:
-                padding_doc = pad_doc.expand(bz, self.args.news_dim).unsqueeze(1).expand(
-                    bz, sent_vecs.size(1), self.args.news_dim)
-                sent_vecs = sent_vecs * log_mask.unsqueeze(2) + padding_doc * (1 - log_mask.unsqueeze(2))
-                user_log_vecs = attn_pool(sent_vecs)
-        elif self.args.user_encoder == 'fastformer':
-            user_log_vecs = self.encoder(sent_vecs, log_mask)
+        # if use_mask:
+        #     user_log_vecs = attn_pool(sent_vecs, log_mask)
+        # else:
+        #     padding_doc = pad_doc.expand(bz, self.args.news_dim).unsqueeze(1).expand(
+        #         bz, sent_vecs.size(1), self.args.news_dim)
+        #     sent_vecs = sent_vecs * log_mask.unsqueeze(2) + padding_doc * (1 - log_mask.unsqueeze(2))
+        #     user_log_vecs = attn_pool(sent_vecs)
+        # user_log_vecs = self.encoder(inputs_embeds=sent_vecs, attention_mask=log_mask)[1]
+        user_log_vecs = self.encoder(sent_vecs, log_mask)
         return user_log_vecs
 
     def forward(self, user_news_vecs, log_mask,
@@ -215,6 +259,7 @@ class UserEncoder(nn.Module):
             user_log_mask
         )
         return user_vec
+
 
 
 class MLNR(nn.Module):
