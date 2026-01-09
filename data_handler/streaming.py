@@ -46,7 +46,7 @@ def get_worker_files(dirnames,
         random.shuffle(files)
 
     logging.info(
-        f"worker_rank:{worker_rank}, world_size:{world_size}, shuffle:{shuffle}, seed:{seed}, directory:{dirname}, files:{files}"
+        f"worker_rank:{worker_rank}, world_size:{world_size}, shuffle:{shuffle}, seed:{seed}, directory:{dirnames}, files:{files}"
     )
     return files
 
@@ -127,10 +127,27 @@ class StreamSampler:
         """Implement iterator interface."""
         # logging.info(f"[StreamSampler] __next__")
         next_batch = self.stream_reader.get_next()
-        if not isinstance(next_batch, np.ndarray) and not isinstance(
-                next_batch, tuple) and not isinstance(next_batch, bytes):
-            raise StopIteration
-        # print(next_batch.shape)
+        
+        # if not isinstance(next_batch, np.ndarray) and not isinstance(
+        #         next_batch, tuple) and not isinstance(next_batch, bytes):
+        #     raise StopIteration
+        # # print(next_batch.shape)
+        # return next_batch
+        
+        # SỬA QUAN TRỌNG: Convert từ TF Tensor sang Numpy ngay lập tức
+        # Nếu next_batch là Tensor (TF2 behavior), chuyển nó thành numpy array
+        if isinstance(next_batch, (tf.Tensor, tf.EagerTensor)):
+            next_batch = next_batch.numpy()
+
+        # Kiểm tra điều kiện dừng (Sửa lại logic check type)
+        if next_batch is None:
+             raise StopIteration
+             
+        # Kiểm tra xem có phải array/list/tuple không để đảm bảo an toàn
+        if not isinstance(next_batch, (np.ndarray, list, tuple, bytes)):
+             # Nếu sau khi convert vẫn không phải array (hiếm gặp), thì dừng
+             raise StopIteration
+             
         return next_batch
 
     def reach_end(self):
@@ -258,7 +275,10 @@ class StreamSamplerTrainForSpeedyRec:
 class StreamReaderTest(StreamReader):
     def __init__(self, data_paths, batch_size, shuffle, shuffle_buffer_size=1000):
         # Tắt GPU cho data loader để tiết kiệm VRAM (giữ nguyên logic cũ)
-        tf.config.experimental.set_visible_devices([], device_type="GPU")
+        try:
+            tf.config.experimental.set_visible_devices([], device_type="GPU")
+        except RuntimeError:
+            pass # Bỏ qua nếu đã init rồi
         
         path_len = len(data_paths)
         
