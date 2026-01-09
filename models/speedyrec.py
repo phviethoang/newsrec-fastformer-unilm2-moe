@@ -166,12 +166,18 @@ class UserEncoder(nn.Module):
         self.args = args
         self.news_pad_doc = nn.Parameter(torch.empty(1, args.news_dim).uniform_(-1, 1)).type(torch.FloatTensor)
         self.dropout = nn.Dropout(p=args.drop_rate)
-        self.news_attn_pool = AttentionPooling(
-            args.news_dim, args.news_dim,
-            drop_rate=args.drop_rate)
-        ffconfig.hidden_size = args.news_dim
-        self.encoder = Fastformer(ffconfig)
-        # self.encoder = BertModel(ffconfig)
+        
+        if args.user_encoder == 'attn_pool':
+            self.news_attn_pool = AttentionPooling(
+                args.news_dim, args.news_dim,
+                drop_rate=args.drop_rate
+            )
+            self.encoder = None      
+        elif args.user_encoder == 'fastformer':
+            ffconfig.hidden_size = args.news_dim
+            self.encoder = Fastformer(ffconfig)
+            # self.encoder = BertModel(ffconfig)
+            self.news_attn_pool = None
 
     def get_user_log_vec(
             self,
@@ -183,15 +189,16 @@ class UserEncoder(nn.Module):
             use_mask=True
     ):
         bz = sent_vecs.shape[0]
-        # if use_mask:
-        #     user_log_vecs = attn_pool(sent_vecs, log_mask)
-        # else:
-        #     padding_doc = pad_doc.expand(bz, self.args.news_dim).unsqueeze(1).expand(
-        #         bz, sent_vecs.size(1), self.args.news_dim)
-        #     sent_vecs = sent_vecs * log_mask.unsqueeze(2) + padding_doc * (1 - log_mask.unsqueeze(2))
-        #     user_log_vecs = attn_pool(sent_vecs)
-        # user_log_vecs = self.encoder(inputs_embeds=sent_vecs, attention_mask=log_mask)[1]
-        user_log_vecs = self.encoder(sent_vecs, log_mask)
+        if self.args.user_encoder == 'attn_pool':
+            if use_mask:
+                user_log_vecs = attn_pool(sent_vecs, log_mask)
+            else:
+                padding_doc = pad_doc.expand(bz, self.args.news_dim).unsqueeze(1).expand(
+                    bz, sent_vecs.size(1), self.args.news_dim)
+                sent_vecs = sent_vecs * log_mask.unsqueeze(2) + padding_doc * (1 - log_mask.unsqueeze(2))
+                user_log_vecs = attn_pool(sent_vecs)
+        elif self.args.user_encoder == 'fastformer':
+            user_log_vecs = self.encoder(sent_vecs, log_mask)
         return user_log_vecs
 
     def forward(self, user_news_vecs, log_mask,
