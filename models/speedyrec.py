@@ -101,6 +101,11 @@ class TextEncoder(nn.Module):
                     args.pretrained_model_path,
                     config=self.config
                 )
+        if args.freeze_pretrain_news_encoder:
+            logging.info("--> FREEZING Pretrained News Encoder (Unicoder) parameters...")
+            for param in self.unicoder.parameters():
+                param.requires_grad = False
+        
         self.drop_layer = nn.Dropout(p=args.drop_rate)
         self.fc = nn.Linear(
             self.config.hidden_size,
