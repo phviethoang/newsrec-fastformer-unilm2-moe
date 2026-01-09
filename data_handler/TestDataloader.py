@@ -154,7 +154,17 @@ class DataLoaderTest(IterableDataset):
 
         user_feature_batch, log_mask_batch, news_feature_batch, news_bias_batch, label_batch = [], [], [], [], []
 
-        for line in batch:
+        for i, line in enumerate(batch):
+            # --- DEBUG BLOCK BẮT ĐẦU ---
+            if i == 0: # Chỉ in dòng đầu tiên của batch để debug
+                print(f"\n[DEBUG] Raw line parts length: {len(line)}")
+                print(f"[DEBUG] Content: {line}")
+            # --- DEBUG BLOCK KẾT THÚC ---
+            # Kiểm tra độ dài cột trước khi truy cập index 3, 4
+            if len(line) < 5:
+                print(f"[ERROR] Dòng thiếu cột! Mong đợi 5, thực tế {len(line)}. Nội dung: {line}")
+                continue # Bỏ qua dòng lỗi
+                
             click_docs = [i for i in line[2].split()]
 
             click_docs, log_mask  = self.pad_to_fix_len(self.trans_to_nindex(click_docs),
