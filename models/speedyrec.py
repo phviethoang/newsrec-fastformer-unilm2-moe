@@ -216,49 +216,131 @@ class TextEncoder(nn.Module):
 #         )
 #         return user_vec
 
+# class UserEncoder(nn.Module):
+#     def __init__(self, args, text_encoder=None):
+#         super(UserEncoder, self).__init__()
+#         self.args = args
+#         self.news_pad_doc = nn.Parameter(torch.empty(1, args.news_dim).uniform_(-1, 1)).type(torch.FloatTensor)
+#         self.dropout = nn.Dropout(p=args.drop_rate)
+#         self.news_attn_pool = AttentionPooling(
+#             args.news_dim, args.news_dim,
+#             drop_rate=args.drop_rate)
+        
+#         ffconfig.hidden_size = args.news_dim
+#         self.encoder = Fastformer(ffconfig)
+#         # self.encoder = BertModel(ffconfig)
+
+#     def get_user_log_vec(
+#             self,
+#             sent_vecs,
+#             log_mask,
+#             log_length,
+#             attn_pool,
+#             pad_doc,
+#             use_mask=True
+#     ):
+#         bz = sent_vecs.shape[0]
+#         # if use_mask:
+#         #     user_log_vecs = attn_pool(sent_vecs, log_mask)
+#         # else:
+#         #     padding_doc = pad_doc.expand(bz, self.args.news_dim).unsqueeze(1).expand(
+#         #         bz, sent_vecs.size(1), self.args.news_dim)
+#         #     sent_vecs = sent_vecs * log_mask.unsqueeze(2) + padding_doc * (1 - log_mask.unsqueeze(2))
+#         #     user_log_vecs = attn_pool(sent_vecs)
+#         # user_log_vecs = self.encoder(inputs_embeds=sent_vecs, attention_mask=log_mask)[1]
+#         user_log_vecs = self.encoder(sent_vecs, log_mask)
+#         return user_log_vecs
+
+#     def forward(self, user_news_vecs, log_mask,
+#                 user_log_mask=False):
+#         user_vec = self.get_user_log_vec(
+#             user_news_vecs, log_mask,
+#             self.args.user_log_length,
+#             self.news_attn_pool, self.news_pad_doc,
+#             user_log_mask
+#         )
+#         return user_vec
+
 class UserEncoder(nn.Module):
-    def __init__(self, args, text_encoder=None):
+    def __init__(self, args):
         super(UserEncoder, self).__init__()
         self.args = args
-        self.news_pad_doc = nn.Parameter(torch.empty(1, args.news_dim).uniform_(-1, 1)).type(torch.FloatTensor)
-        self.dropout = nn.Dropout(p=args.drop_rate)
-        self.news_attn_pool = AttentionPooling(
-            args.news_dim, args.news_dim,
-            drop_rate=args.drop_rate)
+        self.news_dim = args.news_dim
         
-        ffconfig.hidden_size = args.news_dim
-        self.encoder = Fastformer(ffconfig)
-        # self.encoder = BertModel(ffconfig)
-
-    def get_user_log_vec(
-            self,
-            sent_vecs,
-            log_mask,
-            log_length,
-            attn_pool,
-            pad_doc,
-            use_mask=True
-    ):
-        bz = sent_vecs.shape[0]
-        # if use_mask:
-        #     user_log_vecs = attn_pool(sent_vecs, log_mask)
-        # else:
-        #     padding_doc = pad_doc.expand(bz, self.args.news_dim).unsqueeze(1).expand(
-        #         bz, sent_vecs.size(1), self.args.news_dim)
-        #     sent_vecs = sent_vecs * log_mask.unsqueeze(2) + padding_doc * (1 - log_mask.unsqueeze(2))
-        #     user_log_vecs = attn_pool(sent_vecs)
-        # user_log_vecs = self.encoder(inputs_embeds=sent_vecs, attention_mask=log_mask)[1]
-        user_log_vecs = self.encoder(sent_vecs, log_mask)
-        return user_log_vecs
-
-    def forward(self, user_news_vecs, log_mask,
-                user_log_mask=False):
-        user_vec = self.get_user_log_vec(
-            user_news_vecs, log_mask,
-            self.args.user_log_length,
-            self.news_attn_pool, self.news_pad_doc,
-            user_log_mask
+        # 1. Multi-Head Self-Attention
+        # Input: (Batch, Seq, 256) -> Output: (Batch, Seq, 256)
+        self.multihead_attn = nn.MultiheadAttention(
+            embed_dim=self.news_dim,
+            num_heads=16, # Khớp với num_attention_heads trong ffconfig nếu muốn đồng bộ
+            batch_first=True,
+            dropout=args.drop_rate
         )
+        
+        # 2. Layer Norm & Dropout sau Attention
+        self.layer_norm1 = nn.LayerNorm(self.news_dim)
+        self.dropout = nn.Dropout(args.drop_rate)
+        
+        # 3. MoE FeedForward Network (ĐIỂM CẦN SỬA)
+        # ------------------------------------------------------------------
+        # PHÂN TÍCH THAM SỐ:
+        # - Input/Output: 256 (Bắt buộc để giữ nguyên chiều vector user)
+        # - Num Expert: 4 (Theo ffconfig)
+        # - Top K: 2 (Theo ffconfig)
+        # - Hidden Size: KHÔNG DÙNG 128 (ffconfig.expert_hidden_size) vì sẽ tạo bottleneck.
+        #                DÙNG 256 (args.news_dim) để bảo toàn lượng thông tin.
+        # ------------------------------------------------------------------
+        
+        # Nếu muốn mạnh hơn thì để expert_dim = self.news_dim * 2 (512)
+        # Nhưng để "an toàn" và nhẹ, ta để bằng self.news_dim (256)
+        expert_dim = self.news_dim 
+
+        self.moe_ffn = MoEFFN(
+            input_size=self.news_dim,      # 256
+            output_size=self.news_dim,     # 256
+            hidden_size=expert_dim,        # 256 (Thay vì 128 như TextEncoder)
+            num_expert=ffconfig.num_expert,          # 4
+            k=ffconfig.num_selected_expert,          # 2
+            layer_norm_eps=ffconfig.layer_norm_eps,
+            hidden_dropout_prob=args.drop_rate # Dùng drop_rate chung của args
+        )
+        
+        # Layer Norm sau MoE (Chuẩn kiến trúc Transformer: Add & Norm)
+        self.layer_norm2 = nn.LayerNorm(self.news_dim)
+        
+        # 4. Attention Pooling (Gom chuỗi thành 1 vector)
+        self.attn_pool = AttentionPooling(self.news_dim, self.news_dim, args.drop_rate)
+
+    def forward(self, user_news_vecs, log_mask, user_log_mask=False):
+        # user_news_vecs: (Batch, Seq_Len, 256)
+        
+        # --- BLOCK 1: Self-Attention ---
+        # Tạo mask: PyTorch yêu cầu True ở vị trí Padding
+        key_padding_mask = (log_mask == 0) 
+        
+        attn_output, _ = self.multihead_attn(
+            query=user_news_vecs,
+            key=user_news_vecs,
+            value=user_news_vecs,
+            key_padding_mask=key_padding_mask
+        )
+        
+        # Add & Norm 1
+        # Lưu ý: output của attn_output có thể chưa qua dropout, nên thêm vào cho chắc
+        attn_output = self.layer_norm1(user_news_vecs + self.dropout(attn_output))
+        
+        # --- BLOCK 2: MoE FFN ---
+        # Input: (Batch, Seq, 256) -> MoE -> Output: (Batch, Seq, 256)
+        moe_output, moe_loss = self.moe_ffn(attn_output)
+        
+        # Add & Norm 2 (Quan trọng: Residual Connection ở đây)
+        # MoeFFN thường đã có dropout bên trong, nhưng kiểm tra kỹ class MoEFFN của bạn
+        # Nếu MoEFFN chưa cộng Residual bên trong (thường là chưa), ta phải cộng ở ngoài.
+        moe_output = self.layer_norm2(attn_output + moe_output)
+        
+        # --- BLOCK 3: Attention Pooling ---
+        # Tổng hợp thành 1 vector duy nhất
+        user_vec = self.attn_pool(moe_output, log_mask)
+        
         return user_vec
 
 
