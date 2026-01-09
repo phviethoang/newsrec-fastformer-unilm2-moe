@@ -225,7 +225,8 @@ class UserEncoder(nn.Module):
         self.news_attn_pool = AttentionPooling(
             args.news_dim, args.news_dim,
             drop_rate=args.drop_rate)
-
+        
+        ffconfig.hidden_size = args.news_dim
         self.encoder = Fastformer(ffconfig)
         # self.encoder = BertModel(ffconfig)
 
