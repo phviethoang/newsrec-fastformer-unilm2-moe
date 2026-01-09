@@ -262,7 +262,7 @@ class TextEncoder(nn.Module):
 #         return user_vec
 
 class UserEncoder(nn.Module):
-    def __init__(self, args):
+    def __init__(self, args, text_encoder=None):
         super(UserEncoder, self).__init__()
         self.args = args
         self.news_dim = args.news_dim
