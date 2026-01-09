@@ -216,7 +216,18 @@ class MoE(nn.Module):
         threshold_if_out = torch.unsqueeze(torch.gather(top_values_flat, 0, threshold_positions_if_out), 1)
         # is each value currently in the top k.
         normal = Normal(self.mean, self.std)
-        prob_if_in = normal.cdf((clean_values - threshold_if_in)/noise_stddev)
+
+        
+        # prob_if_in = normal.cdf((clean_values - threshold_if_in)/noise_stddev)
+        eps = 1e-6
+        safe_noise_stddev = noise_stddev + eps
+        logits_normalized = (clean_values - threshold_if_in) / safe_noise_stddev
+        # Kẹp giá trị logits lại để tránh số quá lớn gây tràn số (overflow) trong hàm CDF
+        # CDF của -50 hay -1000 thì cũng xấp xỉ 0, +50 hay +1000 xấp xỉ 1, nên kẹp lại không ảnh hưởng logic
+        logits_normalized = torch.clamp(logits_normalized, min=-50, max=50)
+        prob_if_in = normal.cdf(logits_normalized)
+
+        
         prob_if_out = normal.cdf((clean_values - threshold_if_out)/noise_stddev)
         prob = torch.where(is_in, prob_if_in, prob_if_out)
         return prob
