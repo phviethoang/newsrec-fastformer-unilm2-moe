@@ -91,6 +91,8 @@ def parse_args():
 
     parser.add_argument("--use_pretrain_news_encoder", type=utils.str2bool, default=False)
     parser.add_argument("--freeze_pretrain_news_encoder", type=utils.str2bool, default=False)
+    
+    parser.add_argument("--user_encoder", type=str, default='fastformer', choices=['fastformer', 'attn_pool'])
 
     #new parameters for speedyrec
     parser.add_argument("--warmup", type=utils.str2bool, default=False)
